@@ -21,7 +21,8 @@ ${emotion || '(없음)'}
 {"corp":"기업용보고서 1000자 내용","school":"학교용보고서 1000자 내용"}`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // 🔥 이 부분의 메뉴 이름을 'gemini-1.5-flash'에서 'gemini-pro'로 변경했습니다!
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -31,7 +32,6 @@ ${emotion || '(없음)'}
 
     const data = await response.json();
     
-    // 🔥 제미나이가 요리를 안 주고 에러를 줬을 때, 로그에 이유를 적어두는 코드 추가!
     if (!data.candidates) {
       console.error("🚨 제미나이 API 에러 발생 상세내용:", JSON.stringify(data));
       return res.status(500).json({ error: '제미나이 API가 거절했습니다.', details: data });
