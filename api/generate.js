@@ -21,7 +21,29 @@ ${emotion || '느낀 점을 입력하지 않았습니다.'}
 {"corp":"기업용보고서 1000자 내용","school":"학교용보고서 1000자 내용"}`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+    // 1. 구글 주방에 "오늘 주문 가능한 메뉴(AI 모델) 목록 좀 주세요!" 요청하기
+    const menuResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const menuData = await menuResponse.json();
+
+    if (!menuData.models) {
+      return res.status(500).json({ error: '구글 AI 모델 목록을 불러오지 못했습니다.' });
+    }
+
+    // 2. 글쓰기(generateContent)가 가능한 가장 최신의 'gemini' 모델 알아서 찾기
+    const availableModel = menuData.models.find(m => 
+      m.supportedGenerationMethods.includes('generateContent') && 
+      m.name.includes('gemini')
+    );
+
+    if (!availableModel) {
+      return res.status(500).json({ error: '사용 가능한 구글 AI 모델이 없습니다.' });
+    }
+
+    // 찾은 모델 이름 (예: "models/gemini-1.5-flash" 또는 "models/gemini-2.0-flash")
+    const modelName = availableModel.name; 
+
+    // 3. 찾은 최신 모델 이름으로 진짜 보고서 작성 주문하기!
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -31,24 +53,22 @@ ${emotion || '느낀 점을 입력하지 않았습니다.'}
 
     const data = await response.json();
     
-    // 1. 구글 API 자체에서 에러를 보냈을 때 (키 오류 등)
+    // 에러 발생 시 방어
     if (data.error) {
       console.error("API 에러:", data.error);
       return res.status(500).json({ error: `API 에러: ${data.error.message}` });
     }
 
-    // 2. AI가 필터링 정책 등에 걸려서 빈 접시를 줬을 때 방어! (방금 발생한 오류의 원인)
+    // 빈 접시 방어
     const parts = data.candidates?.[0]?.content?.parts;
     if (!parts || parts.length === 0) {
-      console.error("빈 접시 도착. 전체 데이터:", JSON.stringify(data));
-      return res.status(500).json({ error: 'AI가 답변 작성을 거부했습니다. (입력한 단어가 구글 정책 필터링에 걸렸을 수 있습니다.)' });
+      return res.status(500).json({ error: 'AI가 답변 작성을 거부했습니다. (입력한 단어가 구글 필터링에 걸렸을 수 있습니다.)' });
     }
 
-    // 3. 정상적으로 텍스트 가져오기
     const text = parts[0].text;
     
+    // JSON 변환 및 전달
     try {
-      // 제미나이가 JSON 양식을 안 지키고 쓸데없는 말을 덧붙였을 때 방어
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
       res.status(200).json(parsed);
     } catch (parseError) {
