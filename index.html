@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주간업무 보고서 생성기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#F8F7F4;--card:#FFFFFF;--border:#E4E1DA;--border2:#CCC9C0;--text:#1A1816;--muted:#7A7670;--faint:#B0ADA6;--green:#2B4A3F;--green-bg:#EAF0EE;--amber:#6B4E1A;--amber-bg:#F5EFE3;--r:10px;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.7}
+.wrap{max-width:680px;margin:0 auto;padding:3rem 1.25rem 5rem}
+.header{text-align:center;margin-bottom:2.5rem}
+.header h1{font-size:22px;font-weight:500;letter-spacing:-0.01em;margin-bottom:6px}
+.header p{font-size:13px;color:var(--muted)}
+.inputs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+@media(max-width:520px){.inputs{grid-template-columns:1fr}}
+.box{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:border-color .15s}
+.box:focus-within{border-color:var(--border2)}
+.box-head{display:flex;align-items:center;gap:8px;padding:12px 14px 0;font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-g{background:#4CAF7A}
+.dot-a{background:#D4A056}
+textarea{width:100%;border:none;outline:none;background:transparent;font-family:'Noto Sans KR',sans-serif;font-size:13px;color:var(--text);padding:8px 14px 14px;resize:none;line-height:1.75;min-height:160px}
+textarea::placeholder{color:var(--faint)}
+.btn{width:100%;padding:13px;background:var(--text);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-family:'Noto Sans KR',sans-serif;font-weight:500;cursor:pointer;letter-spacing:.01em;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+#output{display:none;margin-top:2rem}
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:0}
+.tab{flex:1;padding:11px 0;font-size:13px;font-weight:500;border:none;background:transparent;color:var(--faint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s}
+.tab.on{color:var(--text);border-bottom-color:var(--text)}
+.pane{display:none}
+.pane.on{display:block}
+.report-wrap{background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);padding:1.5rem}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;padding:3px 11px;border-radius:99px;margin-bottom:1rem;letter-spacing:.03em}
+.badge-g{background:var(--green-bg);color:var(--green)}
+.badge-a{background:var(--amber-bg);color:var(--amber)}
+.report-text{font-size:13.5px;line-height:2;color:var(--text);white-space:pre-wrap;padding-left:1rem;border-left:2px solid var(--border)}
+.actions{display:flex;align-items:center;margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border);gap:8px}
+.copy-btn{padding:7px 16px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+.copy-btn:hover{background:var(--bg);color:var(--text)}
+.cnt{margin-left:auto;font-size:11px;color:var(--faint)}
+.err{background:#FEF0EE;border:1px solid #F2C4BE;border-radius:var(--r);padding:11px 14px;font-size:13px;color:#B33A2F;margin-top:10px;display:none}
+#loading{display:none;text-align:center;padding:2.5rem 0}
+#loading p{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>주간업무 보고서 생성기</h1>
+    <p>이번 주 한 일과 느낀 점을 간단히 적어주세요!</p>
+  </div>
+  <div class="inputs">
+    <div class="box">
+      <div class="box-head"><span class="dot dot-g"></span>한 일</div>
+      <textarea id="work" placeholder="예) UI 검토 회의 참여, Figma 수정"></textarea>
+    </div>
+    <div class="box">
+      <div class="box-head"><span class="dot dot-a"></span>느낀 점</div>
+      <textarea id="emotion" placeholder="예) 의견 반영되어 뿌듯함, 아직 긴장됨"></textarea>
+    </div>
+  </div>
+  <button class="btn" id="gen-btn" onclick="generate()">보고서 작성 요청하기</button>
+  <div class="err" id="err"></div>
+  
+  <div id="loading">
+    <p>🤖 문맥을 파악하며 열심히 글을 쓰는 중입니다. 잠시만 기다려주세요...</p>
+  </div>
+
+  <div id="output">
+    <div class="tabs">
+      <button class="tab on" id="t-corp" onclick="sw('corp')">🏢 기업용 보고서</button>
+      <button class="tab" id="t-school" onclick="sw('school')">🎓 학교용 보고서</button>
+    </div>
+    <div class="report-wrap">
+      <div class="pane on" id="p-corp">
+        <div class="badge badge-g">기업 제출용</div>
+        <div class="report-text" id="corp-text"></div>
+        <div class="actions">
+          <button class="copy-btn" onclick="cp('corp-text',this)">복사하기</button>
+          <span class="cnt" id="corp-cnt"></span>
+        </div>
+      </div>
+      <div class="pane" id="p-school">
+        <div class="badge badge-a">학교 제출용</div>
+        <div class="report-text" id="school-text"></div>
+        <div class="actions">
+          <button class="copy-btn" onclick="cp('school-text',this)">복사하기</button>
+          <span class="cnt" id="school-cnt"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function sw(t){
+  ['corp','school'].forEach(x=>{
+    document.getElementById('t-'+x).className='tab'+(t===x?' on':'');
+    document.getElementById('p-'+x).className='pane'+(t===x?' on':'');
+  });
+}
+
+async function cp(id,btn){
+  const txt=document.getElementById(id).textContent;
+  try{await navigator.clipboard.writeText(txt);}
+  catch(e){const a=document.createElement('textarea');a.value=txt;document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);}
+  btn.textContent='✓ 복사됨';
+  setTimeout(()=>btn.textContent='복사하기',1800);
+}
+
+async function generate(){
+  const work = document.getElementById('work').value.trim();
+  const emotion = document.getElementById('emotion').value.trim();
+  if(!work && !emotion) {
+    document.getElementById('err').textContent = '한 일이나 느낀 점을 입력해주세요!';
+    document.getElementById('err').style.display = 'block';
+    return;
+  }
+  document.getElementById('err').style.display = 'none';
+  document.getElementById('gen-btn').disabled = true;
+  document.getElementById('output').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ work, emotion })
+    });
+    
+    if(!response.ok) throw new Error('서버 에러가 발생했습니다.');
+    
+    const data = await response.json();
+    
+    document.getElementById('corp-text').textContent = data.corp || '내용이 없습니다.';
+    document.getElementById('school-text').textContent = data.school || '내용이 없습니다.';
+    document.getElementById('corp-cnt').textContent = (data.corp||'').length + '자';
+    document.getElementById('school-cnt').textContent = (data.school||'').length + '자';
+    
+    document.getElementById('output').style.display='block';
+    sw('corp');
+  } catch (error) {
+    document.getElementById('err').textContent = '생성 중 오류가 발생했습니다.';
+    document.getElementById('err').style.display = 'block';
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('gen-btn').disabled = false;
+  }
+}
+</script>
+</body>
+</html>
